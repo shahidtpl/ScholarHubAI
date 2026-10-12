@@ -89,6 +89,22 @@ router.get('/my', protect, async (req, res) => {
   }
 });
 
+router.get('/reviewed-by-me', protect, authorize('teacher'), async (req, res) => {
+  try {
+    const resources = await Resource.find({
+      approvedBy: req.user._id,
+      status: 'approved',
+    })
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
+      .sort({ createdAt: -1 });
+    res.json({ resources });
+  } catch (error) {
+    console.error('Error fetching resources reviewed by teacher:', error);
+    res.status(500).json({ message: 'Failed to fetch manuscripts you reviewed' });
+  }
+});
+
 router.get('/mine', protect, async (req, res) => {
   try {
     const resources = await Resource.find({ uploadedBy: req.user._id })

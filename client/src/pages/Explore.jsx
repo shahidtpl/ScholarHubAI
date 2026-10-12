@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BadgeCheck, Bookmark, Check, Eye, FileText, LoaderCircle, Pencil, Quote, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Bookmark, Check, CircleCheck, Eye, FileText, LoaderCircle, Pencil, Quote, Search, Sparkles, Trash2, X } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -31,7 +31,8 @@ function citationFor(resource) {
 
 export default function Explore() {
   const location = useLocation();
-  const { isAuthenticated, isReviewer, user, updateSavedResource } = useAuth();
+  const { isAuthenticated, user, updateSavedResource } = useAuth();
+  const isTeacher = user?.role?.toLowerCase()?.trim() === "teacher";
   const initialParams = new URLSearchParams(location.search);
   const initialCategory = categories.find(
     (item) => item.value === initialParams.get("category") || item.label === initialParams.get("category"),
@@ -102,7 +103,9 @@ export default function Explore() {
       try {
         const endpoint = activeTab === "saved"
           ? "/resources/user/saved"
-          : isReviewer ? "/resources/manage" : "/resources/my";
+          : activeTab === "reviewed" && isTeacher
+            ? "/resources/reviewed-by-me"
+            : "/resources/my";
         const { data } = await api.get(endpoint, { signal: controller.signal });
         setLibraryResources(getResources(data));
       } catch (requestError) {
@@ -116,7 +119,7 @@ export default function Explore() {
     };
     loadPersonalResources();
     return () => controller.abort();
-  }, [activeTab, isAuthenticated, isReviewer, user?._id, user?.id]);
+  }, [activeTab, isAuthenticated, isTeacher, user?._id, user?.id]);
 
   const departments = useMemo(
     () => [...new Set(resources.map((resource) => resource.department).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
@@ -293,10 +296,10 @@ export default function Explore() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200">
-              {activeTab === "catalog" ? "Academic catalog" : activeTab === "saved" ? "Personal digital library" : "Your contributions"}
+              {activeTab === "catalog" ? "Academic catalog" : activeTab === "saved" ? "Personal digital library" : activeTab === "reviewed" ? "Faculty reviews" : "Your contributions"}
             </p>
             <h1 className="mt-2 font-serif text-3xl font-semibold text-white">
-              {activeTab === "catalog" ? "Explore Manuscripts" : activeTab === "saved" ? "Saved Papers" : "My submissions"}
+              {activeTab === "catalog" ? "Explore Manuscripts" : activeTab === "saved" ? "Saved Papers" : activeTab === "reviewed" ? "Reviewed by Me" : "My submissions"}
             </h1>
           </div>
           {activeTab === "catalog" && !loading && !error && (
@@ -318,6 +321,7 @@ export default function Explore() {
           {[
             ["catalog", "Public catalog"],
             ["submissions", "My submissions"],
+            ...(isTeacher ? [["reviewed", "Reviewed by Me"]] : []),
             ["saved", "Saved Papers"],
           ].map(([tab, label]) => (
             <button
@@ -339,7 +343,7 @@ export default function Explore() {
 
         {!isAuthenticated && activeTab !== "catalog" ? (
           <div className="rounded-2xl border border-slate-800 bg-[#0E1422] px-6 py-12 text-center">
-            <p className="text-sm text-slate-300">Sign in to view your {activeTab === "saved" ? "saved papers" : "submissions"}.</p>
+            <p className="text-sm text-slate-300">Sign in to view your {activeTab === "saved" ? "saved papers" : activeTab === "reviewed" ? "reviewed manuscripts" : "submissions"}.</p>
             <Link to="/login" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-300 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-indigo-200">Sign in</Link>
           </div>
         ) : null}
@@ -352,7 +356,7 @@ export default function Explore() {
           <div className="rounded-2xl border border-dashed border-slate-700 bg-[#0E1422]/60 px-6 py-16 text-center">
             <FileText className="mx-auto h-8 w-8 text-slate-500" aria-hidden="true" />
             <p className="mt-4 text-base font-semibold text-white">
-              {activeTab === "saved" ? "No saved papers yet." : activeTab === "submissions" ? "You haven’t submitted any papers yet." : "No manuscripts found matching your criteria."}
+              {activeTab === "saved" ? "No saved papers yet." : activeTab === "submissions" ? "You haven’t submitted any papers yet." : activeTab === "reviewed" ? "You haven’t approved any manuscripts yet." : "No manuscripts found matching your criteria."}
             </p>
             {activeTab === "catalog" && <button type="button" onClick={clearFilters} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-300 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-indigo-200 active:scale-[0.98]">Clear Filters</button>}
           </div>
@@ -397,12 +401,12 @@ export default function Explore() {
                   <p className="mt-2 text-sm font-medium text-slate-300">{resource.author || "Unknown author"}</p>
                   <p className="mt-1 text-xs text-slate-500">{resource.department || "Academic Department"}</p>
                   <div className="mt-3 space-y-1 text-xs text-slate-500">
-                    <p>Submitted by: {resource.uploadedBy?.name || resource.uploaderName || "Academic contributor"} ({resource.uploadedBy?.department || "Student"})</p>
+                    <p>Submitted by: {resource.uploadedBy?.name || resource.author || "Student"} ({resource.uploadedBy?.department || "Student"})</p>
                     {resource.status === "approved" && (
-                      <p className="inline-flex items-center gap-1.5 text-emerald-300">
-                        <BadgeCheck className="h-3.5 w-3.5" aria-label="Verified" />
-                        Peer-Verified by Prof. {resource.approvedBy?.name || "Verified Faculty"}
-                      </p>
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-400">
+                        <CircleCheck className="h-3.5 w-3.5" aria-label="Verified" />
+                        <span>Peer-Verified by Prof. {resource.approvedBy?.name || "Faculty Reviewer"}</span>
+                      </div>
                     )}
                   </div>
                   <p className="mt-4 line-clamp-3 flex-1 text-sm leading-6 text-slate-400">{resource.abstract || resource.description || `Archived academic work in ${resource.department || "an academic department"}. Open manuscript to read full documentation and findings.`}</p>
