@@ -23,8 +23,11 @@ export default function Login() {
     } catch (err) {
       const errorMsg =
         err.response?.data?.message ||
-        err.message ||
-        "Login failed. Please check your details and try again.";
+        (err.code === "API_URL_MISSING"
+          ? err.message
+          : err.response
+            ? "Login failed. Please check your details and try again."
+            : "Server unreachable. Please check your connection and try again.");
       setError(errorMsg);
     } finally {
       setSubmitting(false);
