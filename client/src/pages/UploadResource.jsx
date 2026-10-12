@@ -45,6 +45,7 @@ export default function UploadResource() {
     try {
       const payload = new FormData();
       Object.entries(form).forEach(([key, value]) => payload.append(key, value));
+      payload.set("assignedReviewerEmail", form.assignedReviewerEmail.trim().toLowerCase());
       payload.append("file", file);
       await api.post("/resources", payload);
       const teacherEmail = form.assignedReviewerEmail.trim().toLowerCase();

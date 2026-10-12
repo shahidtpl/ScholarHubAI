@@ -159,7 +159,7 @@ router.get('/pending', protect, authorize('teacher', 'admin'), async (req, res) 
     const resources = await Resource.find(query)
       .populate('uploadedBy', 'name email department role')
       .populate('approvedBy', 'name email department role')
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: -1 });
     res.json({ resources });
   } catch (error) {
     console.error('Error fetching pending resources:', error);
@@ -482,7 +482,7 @@ const resolveAssignedReviewer = async (req, res, next) => {
 
   try {
     req.body.assignedReviewerEmail = email;
-    const teacherUser = await User.findOne({ email, role: 'teacher' }).select('_id');
+    const teacherUser = await User.findOne({ email }).select('_id');
     req.assignedReviewerId = teacherUser?._id || null;
     next();
   } catch (error) {
@@ -509,17 +509,16 @@ router.post('/', protect, upload.single('file'), resolveAssignedReviewer, async 
       return res.status(400).json({ message: 'PDF file is required' });
     }
 
-    const uploaderName = req.user.name || 'Academic Contributor';
-    const status = ['teacher', 'admin'].includes(req.user.role?.toLowerCase()?.trim()) ? 'approved' : 'pending';
+    const uploaderName = req.user.name;
 
     // Relative URL for serving static file
     const fileUrl = `/uploads/${req.file.filename}`;
 
     const newResource = new Resource({
       title: title || req.file.originalname,
-      author: author || 'Academic Contributor',
+      author: author || req.user.name,
       category: category || 'Research Papers',
-      department: department || 'General Studies',
+      department: department || req.user.department,
       year: year || new Date().getFullYear(),
       description: description || '',
       fileUrl,
@@ -531,7 +530,8 @@ router.post('/', protect, upload.single('file'), resolveAssignedReviewer, async 
       assignedReviewerEmail,
       assignedReviewer: req.assignedReviewerId,
       uploaderName,
-      status
+      status: 'pending',
+      approvedBy: null
     });
 
     const saved = await newResource.save();

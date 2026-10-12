@@ -158,7 +158,7 @@ const resourceSchema = new mongoose.Schema(
         values: ["pending", "approved", "rejected"],
         message: "Status must be pending, approved, or rejected",
       },
-      default: "approved",
+      default: "pending",
     },
     feedback: {
       type: String,

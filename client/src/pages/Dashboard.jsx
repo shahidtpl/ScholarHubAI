@@ -630,15 +630,7 @@ function FacultyDashboard() {
 
       if (pendingResult.status === "fulfilled") {
         const reviewQueue = pendingResult.value.data.resources;
-        const teacherEmail = user?.role?.toLowerCase()?.trim() === "teacher"
-          ? user.email?.toLowerCase()?.trim()
-          : "";
-        setPending(Array.isArray(reviewQueue)
-          ? reviewQueue.filter((resource) => (
-            resource.status === "pending" &&
-            (!teacherEmail || resource.assignedReviewerEmail?.toLowerCase()?.trim() === teacherEmail)
-          ))
-          : []);
+        setPending(Array.isArray(reviewQueue) ? reviewQueue : []);
       } else {
         setPendingError(pendingResult.reason.response?.data?.message || "Unable to load the faculty review queue.");
       }
@@ -1083,7 +1075,7 @@ function FacultyDashboard() {
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th scope="col" className="px-4 py-3 font-semibold sm:px-6">Manuscript title</th>
-                    <th scope="col" className="px-4 py-3 font-semibold">Student name</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Submitted by</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Department</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Submitted date</th>
                     <th scope="col" className="px-4 py-3 font-semibold">PDF preview</th>
@@ -1110,7 +1102,7 @@ function FacultyDashboard() {
                     return (
                       <tr key={id} className="border-t border-slate-100">
                         <td className="max-w-xs px-4 py-4 font-semibold text-slate-900 sm:px-6">{item.title || "Untitled manuscript"}</td>
-                        <td className="px-4 py-4 text-slate-700">{item.uploadedBy?.name || item.uploaderName || "Unknown student"}</td>
+                        <td className="px-4 py-4 text-slate-700">{item.uploadedBy?.name || "Student"}</td>
                         <td className="px-4 py-4 text-slate-600">{item.uploadedBy?.department || item.department || "—"}</td>
                         <td className="whitespace-nowrap px-4 py-4 text-slate-600">{formatDate(item.createdAt)}</td>
                         <td className="px-4 py-4">
@@ -1122,6 +1114,12 @@ function FacultyDashboard() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-2">
+                            <Link
+                              to={`/resources/${id}`}
+                              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                            >
+                              Review &amp; Approve
+                            </Link>
                             <button
                               type="button"
                               disabled={Boolean(reviewingId)}

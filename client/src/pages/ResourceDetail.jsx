@@ -642,7 +642,7 @@ export default function ResourceDetail() {
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
                   >
                     {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Approve
+                    Approve &amp; Publish
                   </button>
                   <button
                     type="button"
