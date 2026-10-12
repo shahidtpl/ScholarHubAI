@@ -19,7 +19,7 @@ import {
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const fileBase = (import.meta.env.VITE_FILE_BASE || "http://localhost:5000").replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 const featuredDepartments = ["History", "Computer Science", "Sharia", "Social Sciences"];
 const resourceCategories = ["Books", "Research Papers", "Dissertations", "Seminar Reports", "Lecture Notes"];
 
@@ -39,7 +39,7 @@ function fileHref(resource) {
   if (!resource?.fileUrl) return "";
   return /^https?:\/\//i.test(resource.fileUrl)
     ? resource.fileUrl
-    : `${fileBase}${resource.fileUrl.startsWith("/") ? "" : "/"}${resource.fileUrl}`;
+    : `${API_BASE}${resource.fileUrl.startsWith("/") ? "" : "/"}${resource.fileUrl}`;
 }
 
 function displayNumber(value) {

@@ -19,7 +19,7 @@ import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { DUMMY_RESOURCES, findDummyById } from "../data/dummyResources.js";
 
-const fileBase = (import.meta.env.VITE_FILE_BASE || "http://localhost:5000").replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 const panelClass = "rounded-2xl border border-slate-800 bg-slate-900/70 shadow-[0_18px_50px_rgba(0,0,0,0.18)]";
 const fieldClass = "w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3.5 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/15";
 
@@ -165,7 +165,11 @@ export default function ResourceDetail() {
     };
   }, [resource]);
 
-  const fileHref = resource?.fileUrl ? `${fileBase}${resource.fileUrl}` : "";
+  const fileHref = resource?.fileUrl
+    ? (/^https?:\/\//i.test(resource.fileUrl)
+      ? resource.fileUrl
+      : `${API_BASE}${resource.fileUrl.startsWith("/") ? "" : "/"}${resource.fileUrl}`)
+    : "";
   const downloadHref = fileHref ? `${fileHref}${fileHref.includes("?") ? "&" : "?"}download=1` : "";
   const ratings = resource?.ratings || [];
   const averageRating = Number(resource?.averageRating)

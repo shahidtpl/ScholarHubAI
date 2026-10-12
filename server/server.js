@@ -20,6 +20,7 @@ app.use(cors());
 app.use(express.json({ limit: "4mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", (req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   if (req.query.download === "1") {
     res.setHeader("Content-Disposition", "attachment");
   } else if (path.extname(req.path).toLowerCase() === ".pdf") {
