@@ -21,7 +21,11 @@ export default function Login() {
       const destination = user.role === "teacher" ? "/dashboard" : "/explore";
       navigate(location.state?.from || destination, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to log in.");
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Login failed. Please check your details and try again.";
+      setError(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -33,7 +37,7 @@ export default function Login() {
       <p className="mt-2 text-sm text-slate-600">Sign in to upload, comment, and review.</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
         )}
         <label className="block text-sm font-medium text-slate-700">
           Email

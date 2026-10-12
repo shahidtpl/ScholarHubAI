@@ -7,6 +7,8 @@ const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+const duplicateEmailMessage =
+  "An account with this email already exists. Please login or use another email.";
 
 const generateToken = (userId, role) => {
   return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
@@ -28,7 +30,8 @@ router.post("/register", async (req, res) => {
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return res.status(400).json({
-        message: `This email is already registered as a ${existingUser.role.toUpperCase()}. Please sign in instead.`,
+        success: false,
+        message: duplicateEmailMessage,
         existingRole: existingUser.role,
       });
     }
@@ -57,7 +60,10 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({ message: "Email already registered" });
+      return res.status(409).json({
+        success: false,
+        message: duplicateEmailMessage,
+      });
     }
 
     if (error.name === "ValidationError") {

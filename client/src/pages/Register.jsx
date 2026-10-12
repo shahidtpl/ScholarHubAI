@@ -33,7 +33,11 @@ export default function Register() {
       await register(form);
       navigate("/explore", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to register.");
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Registration failed. Please check your details and try again.";
+      setError(errorMsg);
       setExistingRole(err.response?.data?.existingRole || "");
     } finally {
       setSubmitting(false);
@@ -46,7 +50,7 @@ export default function Register() {
       <p className="mt-2 text-sm text-slate-600">Join as a student, teacher, or researcher.</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
             {error}
             {existingRole && (
               <Link to="/login" className="underline font-bold ml-2">
