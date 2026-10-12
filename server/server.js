@@ -40,6 +40,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/auth", authRoutes);
+app.use("/resources", resourceRoutes);
+app.use("/groups", groupRoutes);
+app.use("/analytics", analyticsRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
