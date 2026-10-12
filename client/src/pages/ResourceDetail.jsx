@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import {
   ArrowDownToLine,
   ArrowLeft,
+  BadgeCheck,
   Bookmark,
   Check,
   Copy,
@@ -10,6 +11,7 @@ import {
   Loader2,
   MessageSquare,
   Quote,
+  Send,
   Sparkles,
   Star,
   ThumbsUp,
@@ -53,7 +55,7 @@ function resourceFileHref(fileUrl) {
     .replace(/^https?:\/\/[^/]+/i, "")
     .split(/[?#]/, 1)[0];
   const filename = storedPath.split("/").filter(Boolean).pop();
-  return filename ? `${API_BASE}/uploads/${filename}` : "";
+  return filename ? `${API_BASE}/uploads/${encodeURIComponent(filename)}` : "";
 }
 
 function roleLabel(role) {
@@ -75,6 +77,7 @@ export default function ResourceDetail() {
   const location = useLocation();
   const { user, token, updateSavedResource } = useAuth();
   const isAuthenticated = Boolean(user && token);
+  const userRole = user?.role?.toLowerCase()?.trim();
   const [resource, setResource] = useState(null);
   const [dummy, setDummy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,6 +98,8 @@ export default function ResourceDetail() {
   const [ratingHover, setRatingHover] = useState(0);
   const [ratingReview, setRatingReview] = useState("");
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [reviewFeedback, setReviewFeedback] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -119,7 +124,7 @@ export default function ResourceDetail() {
     return () => { active = false; };
   }, [id]);
 
-  const fileHref = resourceFileHref(resource?.fileUrl || "");
+  const fileHref = resourceFileHref(resource?.fileUrl || resource?.fileName || "");
   const isPdfPreview = /\.pdf$/i.test(fileHref);
 
   useEffect(() => {
@@ -186,6 +191,10 @@ export default function ResourceDetail() {
     setRatingReview(existingRating?.review || "");
   }, [resource, user]);
 
+  useEffect(() => {
+    setReviewFeedback(resource?.reviewerFeedback || resource?.feedback || "");
+  }, [resource?._id]);
+
   const citations = useMemo(() => {
     if (!resource) return {};
     const bibtexEscape = (value) => String(value || "").replace(/[{}]/g, "");
@@ -198,6 +207,16 @@ export default function ResourceDetail() {
   }, [resource]);
 
   const downloadHref = fileHref ? `${fileHref}${fileHref.includes("?") ? "&" : "?"}download=1` : "";
+  const canReviewResource = Boolean(
+    resource?.status === "pending" &&
+    (userRole === "admin" || (
+      userRole === "teacher" &&
+      (
+        resource.assignedReviewerEmail?.toLowerCase()?.trim() === user?.email?.toLowerCase()?.trim() ||
+        identityId(resource.assignedReviewer) === identityId(user)
+      )
+    ))
+  );
   const ratings = resource?.ratings || [];
   const averageRating = Number(resource?.averageRating)
     || (ratings.length ? ratings.reduce((total, item) => total + Number(item.score || 0), 0) / ratings.length : 0);
@@ -239,6 +258,31 @@ export default function ResourceDetail() {
       setNotice(error.response?.data?.message || "Unable to generate an AI summary. Please try again.");
     } finally {
       setSummaryLoading(false);
+    }
+  };
+
+  const submitPeerReview = async (status) => {
+    if (!canReviewResource || reviewSubmitting || dummy) return;
+    setReviewSubmitting(true);
+    setNotice("");
+    try {
+      const { data } = await api.patch(`/resources/${id}/review`, {
+        status,
+        feedback: reviewFeedback.trim(),
+      });
+      setResource(data.resource || {
+        ...resource,
+        status,
+        reviewerFeedback: reviewFeedback.trim(),
+        feedback: reviewFeedback.trim(),
+      });
+      setNotice(status === "approved"
+        ? "Manuscript approved and published."
+        : "Revision request sent and manuscript rejected.");
+    } catch (error) {
+      setNotice(error.response?.data?.message || "Unable to submit this peer review. Please try again.");
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -439,10 +483,25 @@ export default function ResourceDetail() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-400/15 text-xs font-bold text-indigo-200">{(resource.author || "?").split(/[\s&]+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join("")}</span>
                     {resource.author || "Unknown author"}
                   </span>
-                  <span className="text-xs text-slate-500">Contributed by {resource.uploadedBy?.name || resource.uploaderName || "Academic contributor"}</span>
+                  <span className="text-xs text-slate-500">
+                    Submitted by: {resource.uploadedBy?.name || resource.uploaderName || "Academic contributor"} ({resource.uploadedBy?.department || "Student"})
+                  </span>
                 </div>
+                {resource.status === "approved" && (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-medium text-emerald-300">
+                    <BadgeCheck className="h-4 w-4" aria-label="Verified" />
+                    Peer-Verified by Prof. {resource.approvedBy?.name || "Verified Faculty"}
+                    {resource.approvalDate && <span className="text-slate-500">· {formatDate(resource.approvalDate)}</span>}
+                  </div>
+                )}
                 {(resource.tags || []).length > 0 && <div className="mt-5 flex flex-wrap gap-2">{resource.tags.map((tag) => <span key={tag} className="rounded-full border border-slate-800 bg-slate-950/60 px-2.5 py-1 text-xs text-slate-400">{tag}</span>)}</div>}
               </div>
+              {resource.reviewerFeedback && (
+                <div className="border-t border-emerald-400/15 bg-emerald-400/[0.04] px-6 py-4 sm:px-8">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">Faculty Endorsement / Feedback</p>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-emerald-50">{resource.reviewerFeedback}</p>
+                </div>
+              )}
               <dl className="grid gap-4 p-6 sm:grid-cols-3 sm:p-8">
                 <div><dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Publication year</dt><dd className="mt-2 text-sm font-semibold text-slate-200">{resource.year || citationYear(resource)}</dd></div>
                 <div><dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Resource type</dt><dd className="mt-2 text-sm font-semibold text-slate-200">{resource.category}</dd></div>
@@ -549,6 +608,53 @@ export default function ResourceDetail() {
                 )}
               </div>
             </section>
+
+            {canReviewResource && (
+              <section className={`${panelClass} border-amber-400/20 p-5 sm:p-6`}>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-200">
+                    <BadgeCheck className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200">Faculty workflow</p>
+                    <h2 className="mt-1 font-serif text-xl font-semibold text-white">Peer Review Panel</h2>
+                  </div>
+                </div>
+                <label htmlFor="peer-review-feedback" className="mt-5 block text-sm font-semibold text-slate-200">
+                  Reviewer Comments &amp; Feedback (Suggestions for improvement or endorsement)
+                </label>
+                <textarea
+                  id="peer-review-feedback"
+                  value={reviewFeedback}
+                  onChange={(event) => setReviewFeedback(event.target.value)}
+                  rows={5}
+                  maxLength={2000}
+                  className={`${fieldClass} mt-2 resize-y`}
+                  placeholder="Share suggestions for improvement or an endorsement for publication."
+                  disabled={reviewSubmitting}
+                />
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => submitPeerReview("approved")}
+                    disabled={reviewSubmitting}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Approve &amp; Publish Manuscript
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => submitPeerReview("rejected")}
+                    disabled={reviewSubmitting}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/[0.07] px-4 py-2.5 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/[0.13] disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Request Revisions / Reject
+                  </button>
+                </div>
+              </section>
+            )}
 
             <section id="ai-summary" className={`${panelClass} scroll-mt-36 p-5 sm:p-6`}>
               <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-400/10 text-indigo-200"><Sparkles className="h-5 w-5" /></span><div><p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-300">Research companion</p><h2 className="mt-1 font-serif text-xl font-semibold text-white">Smart Summary</h2></div></div>

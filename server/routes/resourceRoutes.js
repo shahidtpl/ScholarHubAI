@@ -64,7 +64,10 @@ router.get('/', async (req, res) => {
         { department: new RegExp(search, 'i') }
       ];
     }
-    const resources = await Resource.find(query).sort({ createdAt: -1 });
+    const resources = await Resource.find(query)
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
+      .sort({ createdAt: -1 });
     res.json({ resources });
   } catch (error) {
     console.error('Error fetching resources:', error);
@@ -75,7 +78,10 @@ router.get('/', async (req, res) => {
 // Resources submitted by the authenticated user, regardless of review status.
 router.get('/my', protect, async (req, res) => {
   try {
-    const myResources = await Resource.find({ uploadedBy: req.user._id }).sort({ createdAt: -1 });
+    const myResources = await Resource.find({ uploadedBy: req.user._id })
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
+      .sort({ createdAt: -1 });
     res.json(myResources);
   } catch (error) {
     console.error('Error fetching user submissions:', error);
@@ -85,7 +91,10 @@ router.get('/my', protect, async (req, res) => {
 
 router.get('/mine', protect, async (req, res) => {
   try {
-    const resources = await Resource.find({ uploadedBy: req.user._id }).sort({ createdAt: -1 });
+    const resources = await Resource.find({ uploadedBy: req.user._id })
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
+      .sort({ createdAt: -1 });
     res.json({ resources });
   } catch (error) {
     console.error('Error fetching user submissions:', error);
@@ -95,7 +104,10 @@ router.get('/mine', protect, async (req, res) => {
 
 router.get('/manage', protect, authorize('teacher', 'admin'), async (_req, res) => {
   try {
-    const resources = await Resource.find().sort({ createdAt: -1 });
+    const resources = await Resource.find()
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
+      .sort({ createdAt: -1 });
     res.json({ resources });
   } catch (error) {
     console.error('Error fetching resources for management:', error);
@@ -105,7 +117,13 @@ router.get('/manage', protect, authorize('teacher', 'admin'), async (_req, res) 
 
 router.get('/user/saved', protect, async (req, res) => {
   try {
-    await req.user.populate('savedResources');
+    await req.user.populate({
+      path: 'savedResources',
+      populate: [
+        { path: 'uploadedBy', select: 'name email department role' },
+        { path: 'approvedBy', select: 'name email department role' },
+      ],
+    });
     res.json({ resources: req.user.savedResources });
   } catch (error) {
     console.error('Error fetching saved resources:', error);
@@ -118,12 +136,13 @@ router.get('/pending', protect, authorize('teacher', 'admin'), async (req, res) 
     const query = { status: 'pending' };
     if (req.user.role?.toLowerCase()?.trim() === 'teacher') {
       query.$or = [
-        { assignedReviewerEmail: req.user.email },
+        { assignedReviewerEmail: req.user.email?.toLowerCase()?.trim() },
         { assignedReviewer: req.user._id },
       ];
     }
     const resources = await Resource.find(query)
-      .populate('uploadedBy', 'name role department')
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
       .sort({ createdAt: 1 });
     res.json({ resources });
   } catch (error) {
@@ -158,7 +177,8 @@ router.get('/:id', async (req, res) => {
       { $inc: { views: 1 } },
       { new: true }
     )
-      .populate('uploadedBy', 'name role department')
+      .populate('uploadedBy', 'name email department role')
+      .populate('approvedBy', 'name email department role')
       .populate('comments.user', 'name');
     if (!resource) return res.status(404).json({ message: 'Resource not found' });
 
@@ -231,6 +251,8 @@ router.put('/:id', protect, async (req, res) => {
     }
 
     await resource.save();
+    await resource.populate('uploadedBy', 'name email department role');
+    await resource.populate('approvedBy', 'name email department role');
     res.json({ success: true, resource });
   } catch (error) {
     console.error('Error updating resource:', error);
@@ -497,6 +519,8 @@ router.post('/', protect, upload.single('file'), resolveAssignedReviewer, async 
     });
 
     const saved = await newResource.save();
+    await saved.populate('uploadedBy', 'name email department role');
+    await saved.populate('approvedBy', 'name email department role');
     res.status(201).json({ success: true, resource: saved });
   } catch (error) {
     console.error('Upload Error:', error);
@@ -666,13 +690,19 @@ const reviewResource = async (req, res) => {
     if (!resource) return res.status(404).json({ message: 'Resource not found' });
     if (
       req.user.role?.toLowerCase()?.trim() === 'teacher' &&
-      resource.assignedReviewerEmail !== req.user.email &&
+      resource.assignedReviewerEmail?.toLowerCase()?.trim() !== req.user.email?.toLowerCase()?.trim() &&
       !resource.assignedReviewer?.equals(req.user._id)
     ) {
       return res.status(403).json({ message: 'Not assigned to review this resource' });
     }
+    if (resource.status !== 'pending') {
+      return res.status(409).json({ message: 'This manuscript is no longer awaiting review' });
+    }
     resource.status = status;
+    resource.reviewerFeedback = feedback.trim();
     resource.feedback = feedback.trim();
+    resource.approvedBy = status === 'approved' ? req.user._id : null;
+    resource.approvalDate = status === 'approved' ? new Date() : null;
     await resource.save();
 
     if (resource.uploadedBy) {
@@ -687,7 +717,8 @@ const reviewResource = async (req, res) => {
       });
     }
 
-    await resource.populate('uploadedBy', 'name role department');
+    await resource.populate('uploadedBy', 'name email department role');
+    await resource.populate('approvedBy', 'name email department role');
     res.json({ success: true, resource });
   } catch (error) {
     console.error('Error reviewing resource:', error);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bookmark, Check, Eye, FileText, LoaderCircle, Pencil, Quote, Search, Sparkles, Trash2, X } from "lucide-react";
+import { BadgeCheck, Bookmark, Check, Eye, FileText, LoaderCircle, Pencil, Quote, Search, Sparkles, Trash2, X } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -396,7 +396,21 @@ export default function Explore() {
                   <h2 className="mt-4 font-serif text-xl font-bold leading-snug text-white">{resource.title}</h2>
                   <p className="mt-2 text-sm font-medium text-slate-300">{resource.author || "Unknown author"}</p>
                   <p className="mt-1 text-xs text-slate-500">{resource.department || "Academic Department"}</p>
+                  <div className="mt-3 space-y-1 text-xs text-slate-500">
+                    <p>Submitted by: {resource.uploadedBy?.name || resource.uploaderName || "Academic contributor"} ({resource.uploadedBy?.department || "Student"})</p>
+                    {resource.status === "approved" && (
+                      <p className="inline-flex items-center gap-1.5 text-emerald-300">
+                        <BadgeCheck className="h-3.5 w-3.5" aria-label="Verified" />
+                        Peer-Verified by Prof. {resource.approvedBy?.name || "Verified Faculty"}
+                      </p>
+                    )}
+                  </div>
                   <p className="mt-4 line-clamp-3 flex-1 text-sm leading-6 text-slate-400">{resource.abstract || resource.description || `Archived academic work in ${resource.department || "an academic department"}. Open manuscript to read full documentation and findings.`}</p>
+                  {resource.reviewerFeedback && (
+                    <p className="mt-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-xs leading-5 text-emerald-100">
+                      <span className="font-semibold">Faculty Endorsement / Feedback:</span> {resource.reviewerFeedback}
+                    </p>
+                  )}
                   {bookmarkFeedback[id] && <p role="status" className="mt-2 text-xs text-indigo-200">{bookmarkFeedback[id]}</p>}
                   <div className="mt-5 flex w-fit items-center gap-1.5 rounded-full border border-emerald-300/20 bg-emerald-300/[0.08] px-3 py-1.5 text-xs font-semibold text-emerald-200">
                     <Sparkles className="h-3.5 w-3.5" /> AI Summary Ready

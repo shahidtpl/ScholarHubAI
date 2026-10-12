@@ -568,6 +568,17 @@ function FacultyDashboard() {
   const [managementError, setManagementError] = useState("");
   const [managementNotice, setManagementNotice] = useState("");
 
+  const myUploads = useMemo(
+    () => managedResources.filter((resource) => resourceId(resource.uploadedBy) === resourceId(user)),
+    [managedResources, user],
+  );
+  const verifiedByMe = useMemo(
+    () => managedResources.filter((resource) => (
+      resource.status === "approved" && resourceId(resource.approvedBy) === resourceId(user)
+    )),
+    [managedResources, user],
+  );
+
   useEffect(() => {
     let current = true;
 
@@ -619,7 +630,15 @@ function FacultyDashboard() {
 
       if (pendingResult.status === "fulfilled") {
         const reviewQueue = pendingResult.value.data.resources;
-        setPending(Array.isArray(reviewQueue) ? reviewQueue.filter((resource) => resource.status === "pending") : []);
+        const teacherEmail = user?.role?.toLowerCase()?.trim() === "teacher"
+          ? user.email?.toLowerCase()?.trim()
+          : "";
+        setPending(Array.isArray(reviewQueue)
+          ? reviewQueue.filter((resource) => (
+            resource.status === "pending" &&
+            (!teacherEmail || resource.assignedReviewerEmail?.toLowerCase()?.trim() === teacherEmail)
+          ))
+          : []);
       } else {
         setPendingError(pendingResult.reason.response?.data?.message || "Unable to load the faculty review queue.");
       }
@@ -636,7 +655,7 @@ function FacultyDashboard() {
     return () => {
       current = false;
     };
-  }, [isReviewer, user?._id, user?.id]);
+  }, [isReviewer, user?._id, user?.id, user?.email, user?.role]);
 
   const savedResources = useMemo(() => {
     const savedIds = new Set((user?.savedResources || []).map(resourceId));
@@ -681,7 +700,18 @@ function FacultyDashboard() {
     setReviewError("");
     setNotice("");
     try {
-      await api.patch(`/resources/${id}/review`, { status, feedback: reviewFeedback });
+      const { data } = await api.patch(`/resources/${id}/review`, { status, feedback: reviewFeedback });
+      const updatedResource = data.resource;
+      if (updatedResource) {
+        setManagedResources((current) => current.map((resource) => (
+          resourceId(resource) === id ? updatedResource : resource
+        )));
+        setResources((current) => status === "approved"
+          ? current.some((resource) => resourceId(resource) === id)
+            ? current.map((resource) => resourceId(resource) === id ? updatedResource : resource)
+            : [updatedResource, ...current]
+          : current.filter((resource) => resourceId(resource) !== id));
+      }
       setPending((current) => current.filter((resource) => resourceId(resource) !== id));
       setSummary((current) => current
         ? { ...current, pendingApprovals: Math.max(0, Number(current.pendingApprovals || 0) - 1) }
@@ -982,7 +1012,7 @@ function FacultyDashboard() {
             }`}
           >
             <MessageSquare className="h-4 w-4" />
-            Faculty review queue
+            Pending Review Queue
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-600">{pending.length}</span>
           </button>
           <button
@@ -999,8 +1029,25 @@ function FacultyDashboard() {
             }`}
           >
             <FileStack className="h-4 w-4" />
-            {isReviewer ? "Faculty archive" : "My submissions"}
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-600">{managedResources.length}</span>
+            My Uploads
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-600">{myUploads.length}</span>
+          </button>
+          <button
+            id="verified-tab"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "verified"}
+            aria-controls="verified-panel"
+            onClick={() => setActiveTab("verified")}
+            className={`inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition ${
+              activeTab === "verified"
+                ? "border-indigo-600 text-indigo-700"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Check className="h-4 w-4" />
+            Verified by Me
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-600">{verifiedByMe.length}</span>
           </button>
           <button
             id="library-tab"
@@ -1107,14 +1154,14 @@ function FacultyDashboard() {
         ) : activeTab === "submissions" ? (
           <div id="submissions-panel" role="tabpanel" aria-labelledby="submissions-tab" className="bg-[#060911]">
             <div className="px-4 pb-4 pt-5 sm:px-6">
-              <h2 className="font-serif text-xl font-semibold text-white">{isReviewer ? "Faculty archive" : "My uploads / submissions"}</h2>
-              <p className="mt-1 text-sm text-slate-400">Edit manuscript details or permanently remove a submission.</p>
+              <h2 className="font-serif text-xl font-semibold text-white">My Uploads</h2>
+              <p className="mt-1 text-sm text-slate-400">Manuscripts originally submitted by you.</p>
             </div>
             {managementError && <p role="alert" className="mx-4 mb-3 rounded-xl border border-rose-400/20 bg-rose-400/[0.08] px-3 py-2 text-sm text-rose-200 sm:mx-6">{managementError}</p>}
             {managementNotice && <p role="status" className="mx-4 mb-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.08] px-3 py-2 text-sm text-emerald-200 sm:mx-6">{managementNotice}</p>}
-            {managedResources.length ? (
+            {myUploads.length ? (
               <ul className="divide-y divide-slate-800">
-                {managedResources.map((resource) => (
+                {myUploads.map((resource) => (
                   <li key={resourceId(resource)} className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-white">{resource.title}</p>
@@ -1135,7 +1182,34 @@ function FacultyDashboard() {
                 ))}
               </ul>
             ) : (
-              <p className="px-6 py-12 text-center text-sm text-slate-400">{loading ? "Loading submissions…" : "No submissions to manage."}</p>
+              <p className="px-6 py-12 text-center text-sm text-slate-400">{loading ? "Loading your uploads…" : "You have not uploaded any manuscripts."}</p>
+            )}
+          </div>
+        ) : activeTab === "verified" ? (
+          <div id="verified-panel" role="tabpanel" aria-labelledby="verified-tab">
+            <div className="px-4 pb-4 pt-5 sm:px-6">
+              <h2 className="font-serif text-xl font-semibold text-slate-900">Verified by Me</h2>
+              <p className="mt-1 text-sm text-slate-500">Manuscripts approved by your faculty account.</p>
+            </div>
+            {managementError && <ErrorMessage>{managementError}</ErrorMessage>}
+            {verifiedByMe.length ? (
+              <ul className="divide-y divide-slate-100">
+                {verifiedByMe.map((resource) => (
+                  <li key={resourceId(resource)} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-900">{resource.title}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {[resource.uploadedBy?.name || resource.uploaderName, resource.department, formatDate(resource.approvalDate)].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                    <Link to={`/resources/${resourceId(resource)}`} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-800">
+                      <BookOpen className="h-4 w-4" /> View manuscript
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-6 py-12 text-center text-sm text-slate-500">{loading ? "Loading verified manuscripts…" : "You have not verified any manuscripts yet."}</p>
             )}
           </div>
         ) : (

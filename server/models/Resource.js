@@ -124,6 +124,19 @@ const resourceSchema = new mongoose.Schema(
       ref: "User",
       required: false,
     },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reviewerFeedback: {
+      type: String,
+      default: "",
+    },
+    approvalDate: {
+      type: Date,
+      default: null,
+    },
     assignedReviewerEmail: {
       type: String,
       required: true,

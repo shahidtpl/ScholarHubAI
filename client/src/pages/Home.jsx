@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
+  BadgeCheck,
   BookOpen,
   BrainCircuit,
+  ClipboardCheck,
   Eye,
   FileText,
   GraduationCap,
@@ -14,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import api from "../api/axios.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const quickFilters = [
   { label: "All", value: "" },
@@ -73,6 +76,7 @@ function departmentIcon(name) {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [resources, setResources] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -81,6 +85,8 @@ export default function Home() {
   const [resourceError, setResourceError] = useState("");
   const [groupError, setGroupError] = useState("");
   const [citationNotice, setCitationNotice] = useState("");
+  const [pendingReviews, setPendingReviews] = useState([]);
+  const [pendingReviewError, setPendingReviewError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -101,6 +107,30 @@ export default function Home() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (user?.role?.toLowerCase()?.trim() !== "teacher") {
+      setPendingReviews([]);
+      setPendingReviewError("");
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setPendingReviewError("");
+    api.get("/resources/pending", { signal: controller.signal })
+      .then(({ data }) => {
+        const assignedResources = getResources(data)
+          .filter((resource) => resource.status === "pending");
+        setPendingReviews(assignedResources);
+      })
+      .catch((requestError) => {
+        if (requestError.name !== "CanceledError" && requestError.code !== "ERR_CANCELED") {
+          setPendingReviews([]);
+          setPendingReviewError(requestError.response?.data?.message || "Unable to load your pending peer reviews.");
+        }
+      });
+    return () => controller.abort();
+  }, [user?._id, user?.email, user?.role]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -163,6 +193,25 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#060911] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/30 via-slate-950/80 to-[#060911] text-slate-200">
       <main className="mx-auto max-w-7xl space-y-12 px-4 py-8 sm:px-6 lg:px-8">
+        {pendingReviewError && user?.role?.toLowerCase()?.trim() === "teacher" && (
+          <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] px-4 py-3 text-sm text-rose-200">{pendingReviewError}</p>
+        )}
+        {pendingReviews.length > 0 && (
+          <Link
+            to="/dashboard#pending-review-queue"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/30 bg-amber-300/[0.09] px-5 py-4 text-amber-100 shadow-lg shadow-amber-950/10 transition hover:border-amber-200/50 hover:bg-amber-300/[0.14]"
+          >
+            <span className="flex items-center gap-3">
+              <ClipboardCheck className="h-5 w-5 shrink-0 text-amber-200" aria-hidden="true" />
+              <span className="font-semibold">
+                You have {pendingReviews.length} manuscript{pendingReviews.length === 1 ? "" : "s"} awaiting your peer review
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-sm font-bold">
+              Review queue <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </Link>
+        )}
         <section className="grid items-center gap-8 lg:grid-cols-12 lg:gap-10" aria-labelledby="home-title">
           <div className="min-w-0 lg:col-span-7">
             <span className="inline-flex items-center gap-2 rounded-full border border-indigo-800/40 bg-indigo-950/60 px-3 py-1 text-xs text-indigo-300">
@@ -357,6 +406,20 @@ export default function Home() {
                         <Eye className="h-3 w-3" aria-hidden="true" />{getViewCount(resource).toLocaleString()}
                       </span>
                     </div>
+                    <div className="mt-3 space-y-1 text-xs text-slate-500">
+                      <p>Submitted by: {resource.uploadedBy?.name || resource.uploaderName || "Academic contributor"} ({resource.uploadedBy?.department || "Student"})</p>
+                      {resource.status === "approved" && (
+                        <p className="inline-flex items-center gap-1.5 text-emerald-300">
+                          <BadgeCheck className="h-3.5 w-3.5" aria-label="Verified" />
+                          Peer-Verified by Prof. {resource.approvedBy?.name || "Verified Faculty"}
+                        </p>
+                      )}
+                    </div>
+                    {resource.reviewerFeedback && (
+                      <p className="mt-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-xs leading-5 text-emerald-100">
+                        <span className="font-semibold">Faculty Endorsement / Feedback:</span> {resource.reviewerFeedback}
+                      </p>
+                    )}
                     <p className="mt-4 text-sm leading-6 text-slate-400">{abstract}</p>
                     {id ? (
                       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-800/80 pt-4">
