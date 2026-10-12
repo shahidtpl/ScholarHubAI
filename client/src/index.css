@@ -1,0 +1,174 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  --color-academic-background: #070b14;
+  --color-academic-surface: #0e1422;
+  --color-academic-well: #090d17;
+  --color-academic-border: #1e293b;
+  --color-academic-accent: #6366f1;
+  --color-navy-50: #eef3f9;
+  --color-navy-100: #d5e2f0;
+  --color-navy-200: #adc6de;
+  --color-navy-300: #7ea6c8;
+  --color-navy-400: #4f84ad;
+  --color-navy-500: #356890;
+  --color-navy-600: #285274;
+  --color-navy-700: #1e3f5c;
+  --color-navy-800: #162f46;
+  --color-navy-900: #0f2a4a;
+  --color-navy-950: #0a1b30;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #070b14;
+  color: #f8fafc;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  color: #f8fafc;
+  background-color: #090d17;
+  border-color: rgb(30 41 59 / 80%);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgb(99 102 241 / 50%);
+  outline-color: #6366f1;
+}
+
+/* Keep existing page utilities aligned with the shared theme. */
+.bg-slate-50 {
+  background-color: #070b14;
+}
+
+.bg-white {
+  background-color: #0e1422;
+}
+
+.bg-slate-900,
+.bg-slate-900\/90 {
+  background-color: #0e1422;
+}
+
+.bg-slate-950 {
+  background-color: #070b14;
+}
+
+.bg-slate-100,
+.bg-gray-50,
+.bg-gray-100 {
+  background-color: #090d17;
+}
+
+.text-slate-900,
+.text-slate-800,
+.text-gray-900,
+.text-gray-800,
+.text-navy-900 {
+  color: #f8fafc;
+}
+
+.text-slate-700,
+.text-slate-600,
+.text-gray-700,
+.text-gray-600,
+.text-navy-700 {
+  color: #94a3b8;
+}
+
+.text-slate-500,
+.text-gray-500 {
+  color: #64748b;
+}
+
+.border-slate-200,
+.border-slate-300,
+.border-slate-700,
+.border-slate-800,
+.border-slate-700\/60,
+.border-slate-800\/80,
+.border-gray-200,
+.border-gray-300 {
+  border-color: rgb(30 41 59 / 80%);
+}
+
+.border:hover {
+  border-color: rgb(99 102 241 / 50%);
+}
+
+div.mx-auto[class*="max-w-"] {
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  div.mx-auto[class*="max-w-"] {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  div.mx-auto[class*="max-w-"] {
+    padding-inline: 2rem;
+  }
+}
+
+* {
+  scrollbar-color: #334155 #090d17;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #090d17;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border: 2px solid #090d17;
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hero-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 28px 28px;
+}
