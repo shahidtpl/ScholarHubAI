@@ -113,9 +113,16 @@ router.get('/user/saved', protect, async (req, res) => {
   }
 });
 
-router.get('/pending', protect, authorize('teacher', 'admin'), async (_req, res) => {
+router.get('/pending', protect, authorize('teacher', 'admin'), async (req, res) => {
   try {
-    const resources = await Resource.find({ status: 'pending' })
+    const query = { status: 'pending' };
+    if (req.user.role?.toLowerCase()?.trim() === 'teacher') {
+      query.$or = [
+        { assignedReviewerEmail: req.user.email },
+        { assignedReviewer: req.user._id },
+      ];
+    }
+    const resources = await Resource.find(query)
       .populate('uploadedBy', 'name role department')
       .sort({ createdAt: 1 });
     res.json({ resources });
@@ -412,9 +419,53 @@ router.post('/:id/download-increment', async (req, res) => {
 });
 
 // 4. POST Upload new resource
-router.post('/', protect, upload.single('file'), async (req, res) => {
+const resolveAssignedReviewer = async (req, res, next) => {
+  const email = typeof req.body?.assignedReviewerEmail === 'string'
+    ? req.body.assignedReviewerEmail.trim().toLowerCase()
+    : '';
+  const removeUploadedFile = async () => {
+    if (!req.file?.path) return;
+    try {
+      await fs.promises.unlink(req.file.path);
+    } catch (error) {
+      console.error('Failed to remove rejected resource upload:', error);
+    }
+  };
+  if (!email) {
+    await removeUploadedFile();
+    return res.status(400).json({
+      message: 'Assigned Teacher email is required for peer verification',
+    });
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    await removeUploadedFile();
+    return res.status(400).json({ message: 'Please provide a valid Teacher email address' });
+  }
+
   try {
-    const { title, author, category, department, year, description, tags } = req.body;
+    req.body.assignedReviewerEmail = email;
+    const teacherUser = await User.findOne({ email, role: 'teacher' }).select('_id');
+    req.assignedReviewerId = teacherUser?._id || null;
+    next();
+  } catch (error) {
+    await removeUploadedFile();
+    console.error('Error resolving assigned Teacher:', error);
+    res.status(500).json({ message: 'Failed to verify assigned Teacher' });
+  }
+};
+
+router.post('/', protect, upload.single('file'), resolveAssignedReviewer, async (req, res) => {
+  try {
+    const {
+      title,
+      author,
+      category,
+      department,
+      year,
+      description,
+      tags,
+      assignedReviewerEmail,
+    } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: 'PDF file is required' });
@@ -439,6 +490,8 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
         ? tags.split(',').map((tag) => tag.trim()).filter(Boolean)
         : [],
       uploadedBy: req.user._id,
+      assignedReviewerEmail,
+      assignedReviewer: req.assignedReviewerId,
       uploaderName,
       status
     });
@@ -611,6 +664,13 @@ const reviewResource = async (req, res) => {
 
     const resource = await Resource.findById(req.params.id);
     if (!resource) return res.status(404).json({ message: 'Resource not found' });
+    if (
+      req.user.role?.toLowerCase()?.trim() === 'teacher' &&
+      resource.assignedReviewerEmail !== req.user.email &&
+      !resource.assignedReviewer?.equals(req.user._id)
+    ) {
+      return res.status(403).json({ message: 'Not assigned to review this resource' });
+    }
     resource.status = status;
     resource.feedback = feedback.trim();
     await resource.save();

@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const User = require("../models/User");
+const Resource = require("../models/Resource");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -49,6 +50,13 @@ router.post("/register", async (req, res) => {
       role: assignedRole,
       department: department || "",
     });
+
+    if (user.role === "teacher") {
+      await Resource.updateMany(
+        { status: "pending", assignedReviewerEmail: user.email },
+        { $set: { assignedReviewer: user._id } }
+      );
+    }
 
     const token = generateToken(user._id, user.role);
 

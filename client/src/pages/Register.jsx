@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -12,11 +12,16 @@ const ROLES = [
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedRole = searchParams.get("role")?.trim().toLowerCase();
+  const initialRole = ROLES.some((role) => role.value === requestedRole)
+    ? requestedRole
+    : "student";
   const [form, setForm] = useState({
     name: "",
-    email: "",
+    email: searchParams.get("email") || "",
     password: "",
-    role: "student",
+    role: initialRole,
     department: "",
   });
   const [showPassword, setShowPassword] = useState(false);

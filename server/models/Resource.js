@@ -124,6 +124,17 @@ const resourceSchema = new mongoose.Schema(
       ref: "User",
       required: false,
     },
+    assignedReviewerEmail: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+    assignedReviewer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     uploaderName: {
       type: String,
       default: "Academic Contributor",
