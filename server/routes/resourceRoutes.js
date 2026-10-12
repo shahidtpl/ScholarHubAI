@@ -150,7 +150,7 @@ router.get('/user/saved', protect, async (req, res) => {
 router.get('/pending', protect, authorize('teacher', 'admin'), async (req, res) => {
   try {
     const query = { status: 'pending' };
-    if (req.user.role?.toLowerCase()?.trim() === 'teacher') {
+    if ((req.user?.role || '').toLowerCase().trim() === 'teacher') {
       query.$or = [
         { assignedReviewerEmail: req.user.email?.toLowerCase()?.trim() },
         { assignedReviewer: req.user._id },
@@ -705,7 +705,7 @@ const reviewResource = async (req, res) => {
     const resource = await Resource.findById(req.params.id);
     if (!resource) return res.status(404).json({ message: 'Resource not found' });
     if (
-      req.user.role?.toLowerCase()?.trim() === 'teacher' &&
+      (req.user?.role || '').toLowerCase().trim() === 'teacher' &&
       resource.assignedReviewerEmail?.toLowerCase()?.trim() !== req.user.email?.toLowerCase()?.trim() &&
       !resource.assignedReviewer?.equals(req.user._id)
     ) {
@@ -747,5 +747,9 @@ const reviewResource = async (req, res) => {
 
 router.patch('/:id/review', protect, authorize('teacher', 'admin'), reviewResource);
 router.patch('/:id/status', protect, authorize('teacher', 'admin'), reviewResource);
+router.put('/:id/approve', protect, authorize('teacher', 'admin'), (req, res, next) => {
+  req.body = { ...req.body, status: 'approved' };
+  reviewResource(req, res, next);
+});
 
 module.exports = router;

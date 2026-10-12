@@ -35,7 +35,7 @@ function getResources(group) {
 }
 
 function getCreatorRole(group) {
-  const role = group.createdBy?.role;
+  const role = group.createdBy?.role?.toLowerCase()?.trim();
   if (role === "teacher" || role === "admin") return "Faculty";
   if (role === "researcher") return "Researcher";
   return "Student";

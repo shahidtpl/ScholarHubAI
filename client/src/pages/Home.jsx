@@ -76,7 +76,8 @@ function departmentIcon(name) {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const isTeacher = user?.role?.toLowerCase()?.trim() === "teacher";
   const [search, setSearch] = useState("");
   const [resources, setResources] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -109,7 +110,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (user?.role?.toLowerCase()?.trim() !== "teacher") {
+    if (!isTeacher) {
       setPendingReviews([]);
       setPendingReviewError("");
       return undefined;
@@ -117,7 +118,10 @@ export default function Home() {
 
     const controller = new AbortController();
     setPendingReviewError("");
-    api.get("/resources/pending", { signal: controller.signal })
+    api.get("/resources/pending", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    })
       .then(({ data }) => {
         const assignedResources = getResources(data)
           .filter((resource) => resource.status === "pending");
@@ -130,7 +134,7 @@ export default function Home() {
         }
       });
     return () => controller.abort();
-  }, [user?._id, user?.email, user?.role]);
+  }, [isTeacher, token, user?._id, user?.email]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -193,7 +197,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#060911] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/30 via-slate-950/80 to-[#060911] text-slate-200">
       <main className="mx-auto max-w-7xl space-y-12 px-4 py-8 sm:px-6 lg:px-8">
-        {pendingReviewError && user?.role?.toLowerCase()?.trim() === "teacher" && (
+        {pendingReviewError && isTeacher && (
           <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] px-4 py-3 text-sm text-rose-200">{pendingReviewError}</p>
         )}
         {pendingReviews.length > 0 && (

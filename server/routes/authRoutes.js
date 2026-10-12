@@ -12,7 +12,9 @@ const duplicateEmailMessage =
   "An account with this email already exists. Please login or use another email.";
 
 const generateToken = (userId, role) => {
-  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
+  const normalizedRole =
+    typeof role === "string" ? role.trim().toLowerCase() : "student";
+  return jwt.sign({ id: userId, role: normalizedRole }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
@@ -38,7 +40,9 @@ router.post("/register", async (req, res) => {
     }
 
     const allowedRoles = ["student", "teacher", "researcher", "admin"];
-    const assignedRole = allowedRoles.includes(role) ? role : "student";
+    const normalizedRole =
+      typeof role === "string" ? role.trim().toLowerCase() : "";
+    const assignedRole = allowedRoles.includes(normalizedRole) ? normalizedRole : "student";
 
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -51,7 +55,7 @@ router.post("/register", async (req, res) => {
       department: department || "",
     });
 
-    if (user.role === "teacher") {
+    if (user.role?.toLowerCase()?.trim() === "teacher") {
       await Resource.updateMany(
         { status: "pending", assignedReviewerEmail: user.email },
         { $set: { assignedReviewer: user._id } }
@@ -248,14 +252,15 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (selectedRole && user.role !== "admin" && selectedRole !== user.role) {
+    const accountRole = user.role?.toLowerCase()?.trim() || "student";
+    if (selectedRole && accountRole !== "admin" && selectedRole !== accountRole) {
       return res.status(403).json({
         success: false,
-        message: `This account is registered as a ${user.role}. Select the matching role to sign in.`,
+        message: `This account is registered as a ${accountRole}. Select the matching role to sign in.`,
       });
     }
 
-    const activeRole = user.role === "admin" ? user.role : selectedRole || user.role;
+    const activeRole = accountRole === "admin" ? accountRole : selectedRole || accountRole;
     const token = generateToken(user._id, activeRole);
 
     return res.status(200).json({

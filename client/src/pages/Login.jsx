@@ -18,7 +18,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       const { user } = await login(form.email, form.password, form.role);
-      const destination = user.role === "teacher" ? "/dashboard" : "/explore";
+      const destination = user.role?.toLowerCase()?.trim() === "teacher" ? "/dashboard" : "/explore";
       navigate(location.state?.from || destination, { replace: true });
     } catch (err) {
       const errorMsg =

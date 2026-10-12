@@ -18,6 +18,10 @@ function getResources(data) {
   return [];
 }
 
+function identityId(identity) {
+  return String(identity?._id || identity?.id || identity || "");
+}
+
 function matchesCategory(resourceCategory, selectedCategory) {
   if (selectedCategory === "All") return true;
   if (selectedCategory === "Dissertations") return ["Dissertations", "Theses"].includes(resourceCategory);
@@ -242,7 +246,11 @@ export default function Explore() {
     setDepartment("All");
   };
 
-  const displayedResources = activeTab === "catalog" ? visibleResources : libraryResources;
+  const displayedResources = activeTab === "catalog"
+    ? visibleResources
+    : activeTab === "submissions"
+      ? libraryResources.filter((resource) => identityId(resource.uploadedBy) === identityId(user))
+      : libraryResources;
   const displayedLoading = activeTab === "catalog" ? loading : libraryLoading;
   const displayedError = activeTab === "catalog" ? error : libraryError;
 

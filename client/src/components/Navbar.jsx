@@ -13,6 +13,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const headerRef = useRef(null);
+  const normalizedRole = user?.role?.toLowerCase()?.trim();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -66,7 +67,7 @@ export default function Navbar() {
           <NavLink to="/upload" className={linkClass}>
             Upload
           </NavLink>
-          {user && ["teacher", "researcher", "student", "admin"].includes(user.role) && (
+          {user && ["teacher", "researcher", "student", "admin"].includes(normalizedRole) && (
             <NavLink to="/dashboard" className={linkClass}>
               Dashboard
             </NavLink>
@@ -143,7 +144,7 @@ export default function Navbar() {
                 <Upload className="h-4 w-4" /> Upload
               </span>
             </NavLink>
-            {user && ["teacher", "researcher", "student", "admin"].includes(user.role) && (
+            {user && ["teacher", "researcher", "student", "admin"].includes(normalizedRole) && (
               <NavLink to="/dashboard" className={linkClass} onClick={() => setOpen(false)}>
                 <span className="inline-flex items-center gap-2">
                   <LayoutDashboard className="h-4 w-4" /> Dashboard

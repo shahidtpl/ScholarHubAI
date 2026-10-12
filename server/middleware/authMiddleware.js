@@ -50,7 +50,7 @@ const authorize = (...roles) => {
       });
     }
 
-    const userRole = req.user.role.toLowerCase().trim();
+    const userRole = (req.user?.role || "").toLowerCase().trim();
     const allowedRoles = roles.map((role) => role.toLowerCase().trim());
     if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({

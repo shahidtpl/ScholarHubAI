@@ -37,8 +37,9 @@ function getInitials(name = "") {
 }
 
 function roleLabel(role) {
-  if (role === "teacher" || role === "admin") return "Faculty";
-  if (role === "researcher") return "Researcher";
+  const normalizedRole = typeof role === "string" ? role.toLowerCase().trim() : "";
+  if (normalizedRole === "teacher" || normalizedRole === "admin") return "Faculty";
+  if (normalizedRole === "researcher") return "Researcher";
   return "Student";
 }
 

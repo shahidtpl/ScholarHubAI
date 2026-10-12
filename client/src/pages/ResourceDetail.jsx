@@ -59,7 +59,8 @@ function resourceFileHref(fileUrl) {
 }
 
 function roleLabel(role) {
-  return role === "teacher" || role === "admin" ? "Teacher" : "Student";
+  const normalizedRole = typeof role === "string" ? role.toLowerCase().trim() : "";
+  return normalizedRole === "teacher" || normalizedRole === "admin" ? "Teacher" : "Student";
 }
 
 function Stars({ value = 0, size = "h-4 w-4" }) {
@@ -266,10 +267,10 @@ export default function ResourceDetail() {
     setReviewSubmitting(true);
     setNotice("");
     try {
-      const { data } = await api.patch(`/resources/${id}/review`, {
-        status,
-        feedback: reviewFeedback.trim(),
-      });
+      const feedback = reviewFeedback.trim();
+      const { data } = status === "approved"
+        ? await api.put(`/resources/${id}/approve`, { feedback })
+        : await api.patch(`/resources/${id}/review`, { status, feedback });
       setResource(data.resource || {
         ...resource,
         status,
@@ -617,7 +618,7 @@ export default function ResourceDetail() {
                   </span>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200">Faculty workflow</p>
-                    <h2 className="mt-1 font-serif text-xl font-semibold text-white">Peer Review Panel</h2>
+                    <h2 className="mt-1 font-serif text-xl font-semibold text-white">Review &amp; Approve</h2>
                   </div>
                 </div>
                 <label htmlFor="peer-review-feedback" className="mt-5 block text-sm font-semibold text-slate-200">
@@ -641,7 +642,7 @@ export default function ResourceDetail() {
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
                   >
                     {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Approve &amp; Publish Manuscript
+                    Approve
                   </button>
                   <button
                     type="button"
