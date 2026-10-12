@@ -1,9 +1,15 @@
 const path = require("path");
+const fs = require("fs");
 const dns = require("dns");
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Windows often fails MongoDB SRV lookups via the system resolver.
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
@@ -21,14 +27,15 @@ app.use(express.json({ limit: "4mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", (req, res, next) => {
   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  res.setHeader("Access-Control-Allow-Origin", "*");
   if (req.query.download === "1") {
     res.setHeader("Content-Disposition", "attachment");
   } else if (path.extname(req.path).toLowerCase() === ".pdf") {
     res.setHeader("Content-Disposition", "inline");
   }
   next();
-});
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+}, express.static(uploadsDir));
+app.use("/api/uploads", express.static(uploadsDir));
 
 app.get("/", (_req, res) => {
   res.status(200).json({

@@ -47,6 +47,15 @@ function formatDate(value) {
     : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
 }
 
+function resourceFileHref(fileUrl) {
+  if (typeof fileUrl !== "string" || !fileUrl) return "";
+  const storedPath = fileUrl
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .split(/[?#]/, 1)[0];
+  const filename = storedPath.split("/").filter(Boolean).pop();
+  return filename ? `${API_BASE}/uploads/${filename}` : "";
+}
+
 function roleLabel(role) {
   return role === "teacher" || role === "admin" ? "Teacher" : "Student";
 }
@@ -80,6 +89,7 @@ export default function ResourceDetail() {
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsError, setRecommendationsError] = useState("");
+  const [pdfPreviewStatus, setPdfPreviewStatus] = useState("checking");
   const [ratingOpen, setRatingOpen] = useState(false);
   const [ratingScore, setRatingScore] = useState(0);
   const [ratingHover, setRatingHover] = useState(0);
@@ -108,6 +118,28 @@ export default function ResourceDetail() {
     fetchResource();
     return () => { active = false; };
   }, [id]);
+
+  const fileHref = resourceFileHref(resource?.fileUrl || "");
+  const isPdfPreview = /\.pdf$/i.test(fileHref);
+
+  useEffect(() => {
+    if (!fileHref || !isPdfPreview || !isAuthenticated) {
+      setPdfPreviewStatus("idle");
+      return undefined;
+    }
+
+    let active = true;
+    setPdfPreviewStatus("checking");
+    fetch(fileHref, { method: "HEAD" })
+      .then((response) => {
+        if (active) setPdfPreviewStatus(response.ok ? "available" : "unavailable");
+      })
+      .catch(() => {
+        if (active) setPdfPreviewStatus("unavailable");
+      });
+
+    return () => { active = false; };
+  }, [fileHref, isAuthenticated, isPdfPreview]);
 
   useEffect(() => {
     const wantsSummary = new URLSearchParams(location.search).get("tab") === "summary"
@@ -165,11 +197,6 @@ export default function ResourceDetail() {
     };
   }, [resource]);
 
-  const fileHref = resource?.fileUrl
-    ? (/^https?:\/\//i.test(resource.fileUrl)
-      ? resource.fileUrl
-      : `${API_BASE}${resource.fileUrl.startsWith("/") ? "" : "/"}${resource.fileUrl}`)
-    : "";
   const downloadHref = fileHref ? `${fileHref}${fileHref.includes("?") ? "&" : "?"}download=1` : "";
   const ratings = resource?.ratings || [];
   const averageRating = Number(resource?.averageRating)
@@ -504,8 +531,14 @@ export default function ResourceDetail() {
                 <span className="text-xs text-slate-500">{resource.downloadsCount ?? resource.downloadCount ?? 0} downloads</span>
               </div>
               <div className="relative">
-                {fileHref && resource.fileUrl.toLowerCase().endsWith(".pdf")
-                  ? <iframe title="Document preview" src={isAuthenticated ? fileHref : undefined} className={`h-[min(72vh,760px)] min-h-[440px] w-full bg-slate-950 ${!isAuthenticated ? "blur-sm" : ""}`} />
+                {fileHref && isPdfPreview
+                  ? !isAuthenticated
+                    ? <div className="min-h-72 blur-sm" aria-hidden="true" />
+                    : pdfPreviewStatus === "unavailable"
+                      ? <div role="alert" className="flex min-h-72 items-center justify-center px-6 text-center text-sm leading-relaxed text-slate-400">The document file preview is unavailable or has expired. Please re-upload this document.</div>
+                      : pdfPreviewStatus === "available"
+                        ? <iframe title="Document preview" src={fileHref} onError={() => setPdfPreviewStatus("unavailable")} className="h-[min(72vh,760px)] min-h-[440px] w-full bg-slate-950" />
+                        : <div className="flex min-h-72 items-center justify-center px-6 text-center text-sm text-slate-500">Checking document preview…</div>
                   : <div className={`flex min-h-72 items-center justify-center px-6 text-center text-sm leading-relaxed text-slate-500 ${!isAuthenticated ? "blur-sm" : ""}`}>{fileHref ? "Preview is available for PDF documents." : "No document is attached to this sample record."}</div>}
                 {!isAuthenticated && fileHref && (
                   <div className="absolute inset-0 flex items-center justify-center bg-[#070B14]/65 p-5 text-center backdrop-blur-[2px]">
